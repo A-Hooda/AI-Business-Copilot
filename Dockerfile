@@ -23,6 +23,5 @@ RUN mkdir -p uploads reports
 EXPOSE 8000
 
 # Run the application with Gunicorn
-# -w 1: reduced to one worker for 512MB RAM limits (Render Free)
-# -k uvicorn.workers.UvicornWorker: use uvicorn workers for FastAPI
-CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "server:app", "--bind", "0.0.0.0:8000", "--timeout", "300"]
+# Using shell-form to allow environment variable expansion ($PORT)
+CMD gunicorn -w 1 -k uvicorn.workers.UvicornWorker server.py:app --bind 0.0.0.0:$PORT --timeout 300

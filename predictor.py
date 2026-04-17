@@ -6,6 +6,8 @@ import torch.optim as optim
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.inspection import permutation_importance
 import warnings
 
 # --- Sourcedotcom Deep Learning Predictor ---
@@ -59,9 +61,31 @@ class PerformanceNet(nn.Module):
             return out
         return self.network(x)
 
-class UniversalPredictor:
+# --- Fast AI Engine (Turbo Mode) ---
+# Used for Cloud Stability to avoid timeouts
+class FastPredictor:
     @staticmethod
-    def get_performance_drivers(df, roles):
+    def get_drivers(X_train, X_test, y_train, y_test, feature_cols):
+        print("--- [Turbo Mode] Starting Fast Random Forest Analysis ---")
+        model = RandomForestRegressor(n_estimators=50, max_depth=10, n_jobs=-1, random_state=42)
+        model.fit(X_train, y_train.ravel())
+        
+        y_pred = model.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        # Fast Importance
+        result = permutation_importance(model, X_test, y_test, n_repeats=5, random_state=42)
+        importances = {}
+        for i, col in enumerate(feature_cols):
+            importances[col] = float(max(0, result.importances_mean[i]))
+            
+        print("--- [Turbo Mode] Analysis Complete ---")
+        return importances, y_test, y_pred, mae, r2
+
+class UniversalPredictor:
+    @classmethod
+    def get_performance_drivers(cls, df, roles, use_turbo=True):
         """
         Sourcedotcom PyTorch Predictor.
         Trains a Deep Neural Network and uses Permutation Importance to find drivers.
@@ -109,6 +133,9 @@ class UniversalPredictor:
         else:
             X_train, X_test, y_train, y_test = X_raw, X_raw, y_raw, y_raw
 
+        if use_turbo:
+            return FastPredictor.get_drivers(X_train, X_test, y_train, y_test, feature_cols)
+            
         X_train_tensor = torch.from_numpy(X_train)
         y_train_tensor = torch.from_numpy(y_train)
         X_test_tensor = torch.from_numpy(X_test)
