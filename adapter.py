@@ -29,12 +29,22 @@ class DataAdapter:
             print(f"--- [Adapter] Dataset too large ({len(df)} rows). Downsampling to 1M rows for stability. ---")
             df = df.sample(n=1000000, random_state=42)
 
+        detected_currency = None
+        import re
+
         # 0. Proactive Currency & String Metric Coercion
-        # Force designated metric columns to float if they contain nasty strings (e.g., "$1,200", "1,000.00")
         for c, r in roles.items():
             if r in ['primary_metric', 'secondary_metric'] and c in df.columns:
                 if df[c].dtype == 'object':
-                    # Strip any non-numeric sequence EXCEPT . and - indicating decimals/negatives
+                    # Fallback detection: grab first non-digit char if it's a known symbol
+                    if not detected_currency:
+                        first_val = df[c].dropna().head(1).astype(str).tolist()
+                        if first_val:
+                            match = re.search(r'[\$\₹\€\£\¥]', first_val[0])
+                            if match:
+                                detected_currency = match.group(0)
+                    
+                    # Strip any non-numeric sequence EXCEPT . and -
                     df[c] = df[c].astype(str).str.replace(r'[^\d\.\-]', '', regex=True)
                 df[c] = pd.to_numeric(df[c], errors='coerce')
 
@@ -76,7 +86,7 @@ class DataAdapter:
             df[time_col] = pd.to_datetime(df[time_col], errors='coerce')
 
         print(f"--- [Adapter] Cleaning complete. Shape: {df.shape} ---")
-        return df
+        return df, detected_currency
 
     @staticmethod
     def scale_for_ml(df, roles):

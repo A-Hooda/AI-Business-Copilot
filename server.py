@@ -87,13 +87,19 @@ async def upload_file(file: UploadFile = File(...)):
         mapping = interpreter.identify_roles(df)
         roles = mapping.get("column_roles", {})
         session_data["roles"] = roles
+        session_data["currency_symbol"] = mapping.get("currency_symbol", "$")
+        session_data["currency_code"] = mapping.get("currency_code", "USD")
 
         # Capture raw data health before any cleaning/imputation
         total_nas = df.isna().sum().sum()
         raw_missing_pct = f"{(total_nas / df.size * 100):.3f}%" if df.size > 0 else "0.000%"
 
         # Phase 1: Clean only (imputation + date parsing, NO scaling yet)
-        df = DataAdapter.auto_clean(df, roles)
+        df, adapter_currency = DataAdapter.auto_clean(df, roles)
+        
+        # Fallback to adapter's detection if AI missed it or defaulted to $
+        if adapter_currency and (not session_data["currency_symbol"] or session_data["currency_symbol"] == "$"):
+            session_data["currency_symbol"] = adapter_currency
 
         # Phase 2: Domain-specific expert engineering on real-scale data
         df = session_data["expert"].preprocess(df, roles)
@@ -122,7 +128,7 @@ async def upload_file(file: UploadFile = File(...)):
         persona = session_data["expert"].get_consultant_prompt()
         final_analysis = interpreter.identify_roles(df, custom_persona=persona)
         insight = final_analysis.get("business_brief", "No insight generated.")
-        strategy = advisor.generate_strategy(df, roles, drivers, domain, insight)
+        strategy = advisor.generate_strategy(df, roles, drivers, domain, insight, session_data.get("currency_symbol", "$"))
 
         # 7. Data Summary Section
         target_col = next((c for c, r in roles.items() if r == 'primary_metric'), None)
@@ -159,6 +165,8 @@ async def upload_file(file: UploadFile = File(...)):
             "title": session_data["title"],
             "insight": insight,
             "strategy": strategy,
+            "currency_symbol": session_data.get("currency_symbol", "$"),
+            "currency_code": session_data.get("currency_code", "USD"),
             "charts": ["dist.png", "box.png", "correlation.png", "trend.png", "scatter.png", "pred_vs_actual.png", "residual.png", "pie.png", "interaction.png"],
             "summary": summary
         }
@@ -191,7 +199,7 @@ async def chat(request: ChatRequest):
 
     try:
         chatter = DataChatter()
-        answer = chatter.ask(session["df"], session["roles"], question)
+        answer = chatter.ask(session["df"], session["roles"], question, session.get("currency_symbol", "$"))
         return {"answer": answer}
     except Exception as e:
         traceback.print_exc()

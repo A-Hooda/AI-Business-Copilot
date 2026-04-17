@@ -6,7 +6,7 @@ class DataChatter:
     def __init__(self):
         Config.validate()
 
-    def ask(self, df, mapping, question):
+    def ask(self, df, mapping, question, currency_symbol="$"):
         """
         Answers a user question based on the provided dataframe and AI-identified roles.
         """
@@ -26,6 +26,7 @@ class DataChatter:
         prompt = f"""
         You are a Conversational BI Assistant. 
         You have access to a dataset with these columns: {columns}
+        The currency used in this data is: {currency_symbol}
         
         DATA SUMMARY:
         {stats[:1500]}

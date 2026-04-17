@@ -20,6 +20,7 @@ const downloadBtn  = document.getElementById('download-report-btn');
 
 let currentSessionId = null;
 let currentDomain = 'General';
+let currentCurrencySymbol = '$';
 
 // ============================================
 //  1. DRAG & DROP (Emerald Theme)
@@ -116,6 +117,7 @@ function renderResults(data) {
     // Extract Session ID for scalability
     currentSessionId = data.session_id;
     currentDomain = (data.domain || 'General').toLowerCase();
+    currentCurrencySymbol = data.currency_symbol || '$';
 
     // Update header
     const domain = (data.title || 'GENERAL ANALYST').replace(' ANALYST', '').trim();
@@ -172,6 +174,14 @@ function renderResults(data) {
         if (document.getElementById('metric-mae')) {
             document.getElementById('metric-mae').innerText = data.summary.mae || 'N/A';
             document.getElementById('metric-r2').innerText = data.summary.r2 || 'N/A';
+        }
+
+        // Section 1: Average Metric Display
+        if (data.summary.top_metric && data.summary.top_metric !== '—') {
+            const topMetricVal = document.getElementById('sum-sec1-top-val');
+            if (topMetricVal) {
+                topMetricVal.innerText = `${currentCurrencySymbol}${data.summary.top_metric}`;
+            }
         }
     }
 

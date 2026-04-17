@@ -35,9 +35,11 @@ class DataInterpreter:
 
         TASK: 
         1. Map every column name to one of the roles above in 'column_roles'.
-        2. Provide a "business_brief" (one sentence) stating what this dataset seems to represent and its top-line trend.
+        2. Identify the 'currency_symbol' (e.g., $, ₹, €) used for metric columns.
+        3. Identify the 'currency_code' (e.g., USD, INR, EUR) if possible.
+        4. Provide a "business_brief" (one sentence) stating what this dataset represents.
         
-        Return ONLY valid JSON.
+        Return ONLY valid JSON with keys: ["column_roles", "currency_symbol", "currency_code", "business_brief"].
         """
         
         content = LLMManager.get_completion(

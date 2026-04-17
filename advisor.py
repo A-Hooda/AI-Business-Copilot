@@ -6,7 +6,7 @@ class ExpertAdvisor:
     def __init__(self):
         Config.validate()
 
-    def generate_strategy(self, df, roles, drivers, domain, insight):
+    def generate_strategy(self, df, roles, drivers, domain, insight, currency_symbol="$"):
         """
         Generates a comprehensive Markdown report with diagnostic reasoning and strategy.
         """
@@ -26,10 +26,11 @@ class ExpertAdvisor:
         
         SITUATION ANALYSIS:
         - Primary Goal: Optimize {target}.
+        - Currency: {currency_symbol}
         - Key Performance Drivers: {top_drivers}
         - Current Baseline Insight: {insight}
         
-        PROBLEM AREAS (Lowest 3 segments by {target}):
+        PROBLEM AREAS (Lowest 3 segments by {target} in {currency_symbol}):
         {worst_segments}
         
         PRE-CALCULATED MATHEMATICAL AGGREGATES:
