@@ -85,7 +85,7 @@ async function uploadFile(file) {
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({ detail: response.statusText }));
-            throw new Error(errData.detail || `Server error ${response.status}`);
+            throw new Error(errData.detail || `Server Busy: The analysis is taking longer than expected. Try a smaller dataset or refresh and try again.`);
         }
 
         const data = await response.json();
@@ -105,7 +105,7 @@ async function uploadFile(file) {
         hideProgress();
         setStatus('ready', 'Ready');
         console.error('[Copilot Error]', err);
-        appendMessage('bot', `❌ Analysis failed: ${err.message}\n\nPlease check that:\n• Your file is a valid CSV/Excel/JSON\n• The server is running at localhost:8000`);
+        appendMessage('bot', `❌ Analysis failed: ${err.message}\n\nPlease check your file format or try again in a moment. The server may be busy processing other requests.`);
 
         // Reset drop zone
         resetDropZone();

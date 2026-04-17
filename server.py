@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 import pandas as pd
 import uuid
+import gc
+import matplotlib.pyplot as plt
 
 # Project Imports
 from ingester import GenericIngester
@@ -110,6 +112,10 @@ async def upload_file(file: UploadFile = File(...)):
             
         forecast_df = UniversalPredictor.generate_forecast(df, roles)
         AgnosticVisualizer.create_reports(df, roles, drivers, y_test, y_pred, forecast_df=forecast_df, output_dir=session_dir)
+
+        # Explicitly free memory after heavy chart generation
+        plt.close('all')
+        gc.collect()
 
         # 6. Executive Strategy
         advisor = ExpertAdvisor()

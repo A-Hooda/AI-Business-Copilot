@@ -162,19 +162,22 @@ class UniversalPredictor:
         importances = {}
         try:
             import shap
-            # SHAP Deep Explainer on Neural Net
-            sample_size = min(100, X_train_tensor.shape[0])
-            background = X_train_tensor[:sample_size]
-            test_sample = X_test_tensor[:min(100, X_test_tensor.shape[0])]
+            # Aggressive sampling for RAM conservation on cloud instances (512MB limit)
+            max_shap_samples = 100
+            X_train_summary = X_train
+            if len(X_train) > max_shap_samples:
+                X_train_summary = shap.sample(X_train, max_shap_samples)
             
-            # Using GradientExplainer as it's more stable for PyTorch sequentially than DeepExplainer
-            explainer = shap.GradientExplainer(model, background)
-            shap_values = explainer.shap_values(test_sample)
+            X_test_summary = X_test
+            if len(X_test) > max_shap_samples:
+                X_test_summary = shap.sample(X_test, max_shap_samples)
+
+            explainer = shap.DeepExplainer(model, torch.from_numpy(X_train_summary).float())
+            shap_values = explainer.shap_values(torch.from_numpy(X_test_summary).float(), check_additivity=False)
             
-            if isinstance(shap_values, list):
-                shap_values = shap_values[0]
-                
-            mean_shap = np.abs(shap_values).mean(axis=0)
+            # Aggregate importance
+            val = shap_values[0] if isinstance(shap_values, list) else shap_values
+            mean_shap = np.abs(val).mean(axis=0)
             if len(mean_shap.shape) > 1:
                 # Average across output dims if necessary
                 mean_shap = mean_shap.mean(axis=1) 
