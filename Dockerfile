@@ -23,6 +23,6 @@ RUN mkdir -p uploads reports
 EXPOSE 8000
 
 # Run the application with Gunicorn
-# -w 4: four worker processes
+# -w 1: reduced to one worker for 512MB RAM limits (Render Free)
 # -k uvicorn.workers.UvicornWorker: use uvicorn workers for FastAPI
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "server:app", "--bind", "0.0.0.0:8000", "--timeout", "120"]
+CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "server:app", "--bind", "0.0.0.0:8000", "--timeout", "120"]
