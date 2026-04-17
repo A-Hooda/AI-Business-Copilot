@@ -24,4 +24,4 @@ EXPOSE 8000
 
 # Run the application with Gunicorn
 # Using shell-form to allow environment variable expansion ($PORT)
-CMD gunicorn -w 1 -k uvicorn.workers.UvicornWorker server.py:app --bind 0.0.0.0:$PORT --timeout 300
+CMD gunicorn -w 1 -k uvicorn.workers.UvicornWorker server:app --bind 0.0.0.0:$PORT --timeout 300
