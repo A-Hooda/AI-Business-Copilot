@@ -1,5 +1,7 @@
 import os
+import json
 import shutil
+import pickle
 import traceback
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
@@ -28,13 +30,34 @@ from experts.general_expert import GeneralExpert
 
 app = FastAPI(title="Sourcedotcom AI Analyst", version="2.0.0")
 
-# Global in-memory session store for scalability
+# Global in-memory session store
 sessions = {}
 
 # Ensure required directories exist
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("reports", exist_ok=True)
 os.makedirs("frontend", exist_ok=True)
+os.makedirs("sessions", exist_ok=True)
+
+def save_session_status(session_id: str, status: str, progress: int, result=None, error=None):
+    """Persist session status to disk so server restarts don't lose it."""
+    try:
+        data = {"status": status, "progress": progress, "result": result, "error": error}
+        with open(f"sessions/{session_id}.json", "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass  # Non-critical — in-memory is still the source of truth
+
+def load_session_status(session_id: str):
+    """Load session status from disk (fallback when in-memory session is missing)."""
+    try:
+        path = f"sessions/{session_id}.json"
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return None
 
 # Mount static directories
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
@@ -59,8 +82,15 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # 2. Basic Ingestion to confirm it works
+        # 2. Basic Ingestion — read only a capped sample immediately to save RAM
         df = GenericIngester.load_data(file_path)
+        
+        # Aggressive early sampling: cap at 30k rows at upload time
+        # This prevents the full file from bloating server RAM during analysis
+        if len(df) > 30000:
+            print(f"--- [Upload] Large file ({len(df)} rows). Sampling to 30k immediately. ---")
+            df = df.sample(n=30000, random_state=42)
+            gc.collect()
         
         # Initialize session state
         sessions[session_id] = {
@@ -73,6 +103,9 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
             "results": None
         }
 
+        # Persist initial status to disk immediately
+        save_session_status(session_id, "processing", 10)
+        
         # 3. Queue the heavy lifting
         background_tasks.add_task(run_automated_analysis, session_id, file_path)
 
@@ -201,28 +234,46 @@ def run_automated_analysis(session_id: str, file_path: str):
         session_data["status"] = "completed"
         session_data["progress"] = 100
         
+        # Save completed result to disk for restart resilience
+        save_session_status(session_id, "completed", 100, result=result)
+        
         # Final cleanup for this session's background memory
         gc.collect()
         
     except Exception as e:
         traceback.print_exc()
+        err_str = str(e)
         if session_id in sessions:
             sessions[session_id]["status"] = "error"
-            sessions[session_id]["error"] = str(e)
+            sessions[session_id]["error"] = err_str
+        # Save error to disk too
+        save_session_status(session_id, "error", 0, error=err_str)
 
 
 @app.get("/analysis-status/{session_id}")
 async def get_status(session_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
-    return {
-        "status": session["status"],
-        "progress": session.get("progress", 0),
-        "result": session.get("last_result"),
-        "error": session.get("error")
-    }
+    # 1. Try in-memory first (fastest path)
+    if session_id in sessions:
+        session = sessions[session_id]
+        return {
+            "status": session["status"],
+            "progress": session.get("progress", 0),
+            "result": session.get("last_result"),
+            "error": session.get("error")
+        }
+
+    # 2. Fallback: load from disk (handles server restarts)
+    disk_data = load_session_status(session_id)
+    if disk_data:
+        return {
+            "status": disk_data.get("status", "unknown"),
+            "progress": disk_data.get("progress", 0),
+            "result": disk_data.get("result"),
+            "error": disk_data.get("error")
+        }
+
+    # 3. Truly not found
+    raise HTTPException(status_code=404, detail="Session not found")
 
 
 
