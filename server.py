@@ -91,6 +91,10 @@ def run_automated_analysis(session_id: str, file_path: str):
         session_data = sessions[session_id]
         df = session_data["df"]
         session_dir = f"reports/{session_id}"
+
+        # Capture RAW data health BEFORE any cleaning/imputation
+        total_nas = df.isna().sum().sum()
+        raw_missing_pct = f"{(total_nas / df.size * 100):.2f}%" if df.size > 0 else "0.00%"
         
         # 1. Domain Routing
         session_data["progress"] = 20
@@ -160,7 +164,7 @@ def run_automated_analysis(session_id: str, file_path: str):
             "numeric_feats": len(df.select_dtypes(include=['number']).columns),
             "categorical_feats": len(df.select_dtypes(exclude=['number']).columns),
             "duplicates": f"{int(df.duplicated().sum()):,}",
-            "missing_pct": f"{(df.isna().sum().sum() / df.size * 100):.2f}%" if df.size > 0 else "0.00%",
+            "missing_pct": raw_missing_pct,
             "memory": mem_formatted,
             "top_metric": "—",
             "top_segment": "—",
