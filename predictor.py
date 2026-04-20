@@ -106,9 +106,33 @@ class UniversalPredictor:
             return None
             
         print(f"--- [Sourcedotcom] Training Custom PyTorch Neural Network for {target_col}... ---")
-        
-        # Prepare X and y
-        X_raw = df[feature_cols].copy()
+
+        if use_turbo:
+            # *** CLOUD MODE: Use lightweight sklearn RandomForest ***
+            # Avoids PyTorch + SHAP memory spikes that OOM-kill 512MB servers.
+            print(f"--- [Sourcedotcom] CloudSafe Mode: Using FastPredictor (RandomForest) ---")
+            X_raw = df[feature_cols].copy()
+            for col in X_raw.columns:
+                if not pd.api.types.is_numeric_dtype(X_raw[col]):
+                    le = LabelEncoder()
+                    X_raw[col] = le.fit_transform(X_raw[col].astype(str))
+            X_raw = X_raw.fillna(0).values.astype(np.float32)
+
+            if not pd.api.types.is_numeric_dtype(df[target_col].dropna()):
+                le_y = LabelEncoder()
+                y_raw = le_y.fit_transform(df[target_col].astype(str)).reshape(-1, 1).astype(np.float32)
+            else:
+                y_raw = df[target_col].values.reshape(-1, 1)
+                y_raw = np.nan_to_num(y_raw, nan=0.0).astype(np.float32)
+
+            if len(X_raw) > 10:
+                X_train, X_test, y_train, y_test = train_test_split(X_raw, y_raw, test_size=0.2, random_state=42)
+            else:
+                X_train, X_test, y_train, y_test = X_raw, X_raw, y_raw, y_raw
+
+            return FastPredictor.get_drivers(X_train, X_test, y_train, y_test, feature_cols)
+
+        # Below this line = use_turbo=False (only for local/dev)
         
         # Safely handle y_raw for classifiers or nulls
         if not pd.api.types.is_numeric_dtype(df[target_col].dropna()):
