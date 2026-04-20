@@ -17,7 +17,8 @@ class GenericIngester:
         
         try:
             if ext == '.csv':
-                return pd.read_csv(file_path, encoding='utf-8')
+                return pd.read_csv(file_path, encoding='utf-8', on_bad_lines='skip', low_memory=False)
+
             elif ext in ['.xlsx', '.xls']:
                 return pd.read_excel(file_path)
             elif ext == '.json':

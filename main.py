@@ -45,7 +45,8 @@ def main():
     interpreter = DataInterpreter()
     mapping = interpreter.identify_roles(df)
     roles = mapping.get("column_roles", {})
-    df = DataAdapter.auto_clean(df, roles)
+    df, _ = DataAdapter.auto_clean(df, roles)
+
 
     # 4. Expert Preprocessing
     df = expert.preprocess(df, roles)
