@@ -9,6 +9,7 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.inspection import permutation_importance
 import warnings
+import gc
 
 # --- Sourcedotcom Deep Learning Predictor ---
 # Custom Neural Network for High-Integrity Feature Attribution
@@ -30,12 +31,7 @@ class PerformanceNet(nn.Module):
             )
         else:
             self.network = nn.Sequential(
-                nn.Linear(input_dim, 256),
-                nn.BatchNorm1d(256),
-                nn.ReLU(),
-                nn.Dropout(0.2),
-                
-                nn.Linear(256, 128),
+                nn.Linear(input_dim, 128),
                 nn.BatchNorm1d(128),
                 nn.ReLU(),
                 nn.Dropout(0.2),
@@ -43,8 +39,13 @@ class PerformanceNet(nn.Module):
                 nn.Linear(128, 64),
                 nn.BatchNorm1d(64),
                 nn.ReLU(),
+                nn.Dropout(0.1),
                 
-                nn.Linear(64, 1)
+                nn.Linear(64, 32),
+                nn.BatchNorm1d(32),
+                nn.ReLU(),
+                
+                nn.Linear(32, 1)
             )
 
     def forward(self, x):
@@ -178,6 +179,13 @@ class UniversalPredictor:
             
             # Early Stopping Check
             avg_epoch_loss = epoch_loss / len(loader)
+            
+            # Aggressive GC inside loop for 512MB RAM environments
+            if epoch % 10 == 0:
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
             if avg_epoch_loss < best_loss - 1e-4:
                 best_loss = avg_epoch_loss
                 patience_counter = 0
@@ -208,7 +216,7 @@ class UniversalPredictor:
         try:
             import shap
             # Aggressive sampling for RAM conservation on cloud instances (512MB limit)
-            max_shap_samples = 100
+            max_shap_samples = 50
             X_train_summary = X_train
             if len(X_train) > max_shap_samples:
                 X_train_summary = shap.sample(X_train, max_shap_samples)

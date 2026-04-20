@@ -142,7 +142,10 @@ def run_automated_analysis(session_id: str, file_path: str):
         # 5. Visualizer
         session_data["progress"] = 80
         AgnosticVisualizer.create_reports(df, roles, drivers, y_test, y_pred, forecast_df=forecast_df, output_dir=session_dir)
+        
+        # Explicitly free memory after heavy chart generation
         plt.close('all')
+        if 'df_scaled' in locals(): del df_scaled
         gc.collect()
 
         # 6. Strategy & Summary
@@ -191,6 +194,9 @@ def run_automated_analysis(session_id: str, file_path: str):
         session_data["last_result"] = result
         session_data["status"] = "completed"
         session_data["progress"] = 100
+        
+        # Final cleanup for this session's background memory
+        gc.collect()
         
     except Exception as e:
         traceback.print_exc()

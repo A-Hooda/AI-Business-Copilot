@@ -103,9 +103,14 @@ async function pollAnalysisStatus(sessionId) {
     while (!isComplete) {
         try {
             const response = await fetch(`/analysis-status/${sessionId}`);
+            
+            if (response.status === 404) {
+                throw new Error("SERVER_RESTARTED");
+            }
+            
             if (!response.ok) {
                 failCount++;
-                if (failCount > 5) throw new Error("Connection lost repeatedly.");
+                if (failCount > 10) throw new Error("Connection lost repeatedly.");
                 await sleep(3000);
                 continue;
             }
@@ -136,7 +141,12 @@ async function pollAnalysisStatus(sessionId) {
             isComplete = true;
             hideProgress();
             setStatus('ready', 'Ready');
-            appendMessage('bot', `❌ Analysis failed: ${err.message}`);
+            
+            if (err.message === "SERVER_RESTARTED") {
+                appendMessage('bot', `🔄 <strong>Server Restarted:</strong> Your analysis was interrupted by a system update. Please <strong>re-upload</strong> your dataset to continue.`);
+            } else {
+                appendMessage('bot', `❌ Analysis failed: ${err.message}`);
+            }
             resetDropZone();
         }
     }
