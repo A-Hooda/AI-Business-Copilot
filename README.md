@@ -8,26 +8,30 @@ The AI Business Copilot is a sophisticated analytics solution designed to bridge
 
 In today's data-driven environment, the challenge is often not a lack of data, but the difficulty in extracting meaningful, high-level narratives from it. This platform automates the entire analytical lifecycle—from domain identification and data cleaning to predictive modeling and strategic reporting—ensuring that business leaders receive accurate, actionable information in a clear and professional format.
 
-## Core Capabilities
+## The Analytical Lifecycle: How It Works
 
-### Specialized Analytical Routing
-The platform automatically identifies the domain of your dataset, whether it pertains to Finance, Human Resources, or General Business operations. It then assumes a specialized analytical persona—such as a CFO or CHRO—to ensure that the insights generated are industry-relevant and focused on the metrics that matter most.
+To ensure both technical depth and user accessibility, the platform follows a structured four-stage analytical pipeline.
 
-### Predictive Modeling and Diagnostic Intelligence
-Using PyTorch-based neural networks, the system identifies the key drivers behind your business performance. By utilizing SHAP values and permutation importance, the platform explains not just what is happening in your data, but why it is happening, providing a level of transparency often missing in standard automated tools.
+### 1. Contextual Ingestion and Interpretation
+When a file is uploaded, the system does not just read the numbers; it uses an artificial intelligence "Interpreter" to understand the functional role of every column. By analyzing headers and sample data, it identifies which columns represent your primary goals (Metrics), your categories (Dimensions), and your timeline (Temporal Axis). This allows the system to pivot its logic dynamically based on whether you are analyzing financial ledgers or HR payrolls.
 
-### Executive Level Reporting
-The final output is a comprehensive strategic brief. Unlike simple data summaries, these reports focus on causal inference and macro-economic factors, providing the kind of high-level reasoning expected in boardrooms. Reports can be exported as professional PDF documents for external distribution.
+### 2. Defensive Data Engineering
+Data is rarely perfect. The platform includes an automated "Adapter" that performs high-integrity cleaning. It handles missing values using statistical medians, standardizes date formats, and resolves currency symbols. Most importantly, it uses "Defensive Indexing" to ensure that even if a column name is slightly inconsistent, the system can still find and process the correct data without crashing.
 
-### Conversational Business Intelligence
-An integrated chat interface allows for direct interrogation of the data. To resolve the common issue of mathematical inaccuracies in language models, this system utilizes a dedicated computation engine that performs exact calculations via Pandas before the AI interprets the results.
+### 3. Neural Diagnostic Modeling (The "Why" Engine)
+At the heart of the platform is a custom PyTorch Neural Network. Unlike a simple calculator, this model "learns" the complex relationships between all your business factors. 
+- **Predictive Power**: The model attempts to predict your primary metric (like Revenue) based on all other variables. 
+- **Driver Identification**: We use a technique called SHAP (SHapley Additive exPlanations). Think of this as a "What-If" machine that mathematically determines exactly how much "credit" each factor deserves for your success. For example, it can quantify exactly how much a specific region or department contributed to a boost in sales.
+
+### 4. Causal Reasoning and Strategic Narration
+Once the numbers are computed, the Strategic Advisor (LLM) takes over. Instead of just listing facts, it performs "Causal Inference." It looks at the trends and uses its deep business knowledge to suggest *why* they happened—considering factors like seasonal demand, market shifts, or operational efficiency. This results in a narrative report that sounds like it was written by a senior consultant.
 
 ## Technical Architecture
 
 - **Backend Framework**: Python 3.11 with FastAPI for high-performance, asynchronous service delivery.
 - **Machine Learning Layer**: PyTorch for diagnostic modeling and Scikit-learn for rapid feature analysis.
 - **Artificial Intelligence**: Integration with Groq-hosted Llama and Mixtral models for sophisticated reasoning.
-- **Data Engineering**: Robust Pandas and NumPy pipelines for automated cleaning and transformation.
+- **Computation Engine**: A dedicated system that performs exact mathematical calculations via Pandas *before* the AI interprets them, eliminating the risk of mathematical errors common in standard AI models.
 - **Visualization Suite**: Custom-themed Matplotlib and Seaborn implementations for professional-grade analytics.
 
 ## Setup and Installation
