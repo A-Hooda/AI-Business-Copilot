@@ -162,13 +162,31 @@ class UniversalPredictor:
         if len(df) < 500: epochs = 200
         
         model.train()
+        best_loss = float('inf')
+        patience = 10
+        patience_counter = 0
+        
         for epoch in range(epochs):
+            epoch_loss = 0.0
             for batch_X, batch_y in loader:
                 optimizer.zero_grad()
                 outputs = model(batch_X)
                 loss = criterion(outputs, batch_y)
                 loss.backward()
                 optimizer.step()
+                epoch_loss += loss.item()
+            
+            # Early Stopping Check
+            avg_epoch_loss = epoch_loss / len(loader)
+            if avg_epoch_loss < best_loss - 1e-4:
+                best_loss = avg_epoch_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+            
+            if patience_counter >= patience:
+                print(f"--- [Sourcedotcom] Early Stopping at epoch {epoch} (Accuracy stabilized) ---")
+                break
 
         # 6. Model Evaluation (Prediction vs Actual metrics)
         model.eval()

@@ -1,7 +1,7 @@
 import os
 import shutil
 import traceback
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -47,27 +47,53 @@ async def read_index():
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     file_path = f"uploads/{file.filename}"
 
     try:
         session_id = str(uuid.uuid4())
         session_dir = f"reports/{session_id}"
+        os.makedirs(session_dir, exist_ok=True)
         
-        session_data = {
-            "title": "GENERAL ANALYST",
-            "expert": GeneralExpert()
-        }
-
-        # 1. Save uploaded file
+        # 1. Save uploaded file instantly
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # 2. Ingest
+        # 2. Basic Ingestion to confirm it works
         df = GenericIngester.load_data(file_path)
-        session_data["df"] = df
+        
+        # Initialize session state
+        sessions[session_id] = {
+            "status": "processing",
+            "progress": 10,
+            "filename": file.filename,
+            "df": df,
+            "domain": "analyzing...",
+            "title": "SCANNING...",
+            "results": None
+        }
 
-        # 3. Domain Routing
+        # 3. Queue the heavy lifting
+        background_tasks.add_task(run_automated_analysis, session_id, file_path)
+
+        return {"session_id": session_id, "status": "processing"}
+
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def run_automated_analysis(session_id: str, file_path: str):
+    """
+    Heavy-duty background task for deep data intelligence.
+    """
+    try:
+        session_data = sessions[session_id]
+        df = session_data["df"]
+        session_dir = f"reports/{session_id}"
+        
+        # 1. Domain Routing
+        session_data["progress"] = 20
         router = ExpertRouter()
         domain = router.determine_domain(df)
         session_data["domain"] = domain
@@ -82,33 +108,24 @@ async def upload_file(file: UploadFile = File(...)):
             session_data["expert"] = GeneralExpert()
             session_data["title"] = "GENERAL ANALYST"
 
-        # 4. Intelligence Loop
+        # 2. Intelligence Mapping
+        session_data["progress"] = 40
         interpreter = DataInterpreter()
         mapping = interpreter.identify_roles(df)
         roles = mapping.get("column_roles", {})
         session_data["roles"] = roles
         session_data["currency_symbol"] = mapping.get("currency_symbol", "$")
-        session_data["currency_code"] = mapping.get("currency_code", "USD")
-
-        # Capture raw data health before any cleaning/imputation
-        total_nas = df.isna().sum().sum()
-        raw_missing_pct = f"{(total_nas / df.size * 100):.3f}%" if df.size > 0 else "0.000%"
-
-        # Phase 1: Clean only (imputation + date parsing, NO scaling yet)
-        df, adapter_currency = DataAdapter.auto_clean(df, roles)
         
-        # Fallback to adapter's detection if AI missed it or defaulted to $
+        # 3. Clean and Prep
+        df, adapter_currency = DataAdapter.auto_clean(df, roles)
         if adapter_currency and (not session_data["currency_symbol"] or session_data["currency_symbol"] == "$"):
             session_data["currency_symbol"] = adapter_currency
-
-        # Phase 2: Domain-specific expert engineering on real-scale data
+            
         df = session_data["expert"].preprocess(df, roles)
         session_data["df"] = df
 
-        # Store session before further processing to ensure safe state availability
-        sessions[session_id] = session_data
-
-        # 5. Diagnostic Intelligence (The "Why")
+        # 4. ML Drivers (The Heavy Part)
+        session_data["progress"] = 60
         df_scaled = DataAdapter.scale_for_ml(df, roles)
         prediction_payload = UniversalPredictor.get_performance_drivers(df_scaled, roles)
         if prediction_payload:
@@ -117,29 +134,25 @@ async def upload_file(file: UploadFile = File(...)):
             drivers, y_test, y_pred, mae, r2 = {}, None, None, 0.0, 0.0
             
         forecast_df = UniversalPredictor.generate_forecast(df, roles)
+        
+        # 5. Visualizer
+        session_data["progress"] = 80
         AgnosticVisualizer.create_reports(df, roles, drivers, y_test, y_pred, forecast_df=forecast_df, output_dir=session_dir)
-
-        # Explicitly free memory after heavy chart generation
         plt.close('all')
         gc.collect()
 
-        # 6. Executive Strategy
+        # 6. Strategy & Summary
         advisor = ExpertAdvisor()
         persona = session_data["expert"].get_consultant_prompt()
         final_analysis = interpreter.identify_roles(df, custom_persona=persona)
         insight = final_analysis.get("business_brief", "No insight generated.")
         strategy = advisor.generate_strategy(df, roles, drivers, domain, insight, session_data.get("currency_symbol", "$"))
 
-        # 7. Data Summary Section
         target_col = next((c for c, r in roles.items() if r == 'primary_metric' and c in df.columns), None)
         dim_col = next((c for c, r in roles.items() if r == 'primary_dimension' and c in df.columns), None)
         
-        # Calculate Memory meticulously
         mem_bytes = df.memory_usage(deep=True).sum()
-        if mem_bytes < 1024 * 1024:
-            mem_formatted = f"{(mem_bytes / 1024):.2f} KB"
-        else:
-            mem_formatted = f"{(mem_bytes / 1024**2):.2f} MB"
+        mem_formatted = f"{(mem_bytes / 1024**2):.2f} MB" if mem_bytes > 1024*1024 else f"{(mem_bytes / 1024):.2f} KB"
 
         summary = {
             "records": f"{len(df):,}",
@@ -147,7 +160,7 @@ async def upload_file(file: UploadFile = File(...)):
             "numeric_feats": len(df.select_dtypes(include=['number']).columns),
             "categorical_feats": len(df.select_dtypes(exclude=['number']).columns),
             "duplicates": f"{int(df.duplicated().sum()):,}",
-            "missing_pct": raw_missing_pct,
+            "missing_pct": f"{(df.isna().sum().sum() / df.size * 100):.2f}%" if df.size > 0 else "0.00%",
             "memory": mem_formatted,
             "top_metric": "—",
             "top_segment": "—",
@@ -160,27 +173,42 @@ async def upload_file(file: UploadFile = File(...)):
             if dim_col and dim_col in df.columns:
                 try:
                     summary["top_segment"] = str(df.groupby(dim_col)[target_col].sum().idxmax())
-                except Exception:
-                    summary["top_segment"] = "—"
+                except Exception: pass
 
         result = {
             "session_id": session_id,
             "title": session_data["title"],
             "insight": insight,
             "strategy": strategy,
-            "currency_symbol": session_data.get("currency_symbol", "$"),
-            "currency_code": session_data.get("currency_code", "USD"),
-            "charts": ["dist.png", "box.png", "correlation.png", "trend.png", "scatter.png", "pred_vs_actual.png", "residual.png", "pie.png", "interaction.png"],
+            "currency_symbol": session_data["currency_symbol"],
             "summary": summary
         }
         
-        # Store for PDF reporting
         session_data["last_result"] = result
-        return result
-
+        session_data["status"] = "completed"
+        session_data["progress"] = 100
+        
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        if session_id in sessions:
+            sessions[session_id]["status"] = "error"
+            sessions[session_id]["error"] = str(e)
+
+
+@app.get("/analysis-status/{session_id}")
+async def get_status(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[session_id]
+    return {
+        "status": session["status"],
+        "progress": session.get("progress", 0),
+        "result": session.get("last_result"),
+        "error": session.get("error")
+    }
+
+
 
 
 class ChatRequest(BaseModel):

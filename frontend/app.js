@@ -54,7 +54,6 @@ fileInput.addEventListener('change', () => {
 //  2. FILE UPLOAD & ANALYSIS
 // ============================================
 async function uploadFile(file) {
-    // Validate file type
     const validTypes = ['.csv', '.xlsx', '.xls', '.json'];
     const ext = '.' + file.name.split('.').pop().toLowerCase();
     if (!validTypes.includes(ext)) {
@@ -62,19 +61,12 @@ async function uploadFile(file) {
         return;
     }
 
-    setStatus('busy', 'Analyzing...');
+    setStatus('busy', 'Uploading...');
     showProgress();
-    appendMessage('bot', `🔬 Analyzing <strong>${file.name}</strong>…\nThe AI is routing your data to the right specialist.`);
+    appendMessage('bot', `🔬 Uploading <strong>${file.name}</strong>…`);
 
     const formData = new FormData();
     formData.append('file', file);
-
-    // Simulate progressive loading bar
-    let pct = 5;
-    const ticker = setInterval(() => {
-        pct = Math.min(pct + Math.random() * 8, 88);
-        setProgress(pct, 'AI processing…');
-    }, 500);
 
     try {
         const response = await fetch('/upload', {
@@ -82,34 +74,71 @@ async function uploadFile(file) {
             body: formData
         });
 
-        clearInterval(ticker);
-
         if (!response.ok) {
             const errData = await response.json().catch(() => ({ detail: response.statusText }));
-            throw new Error(errData.detail || `Server Busy: The analysis is taking longer than expected. Try a smaller dataset or refresh and try again.`);
+            throw new Error(errData.detail || `Server Busy: The analysis is taking longer than expected.`);
         }
 
         const data = await response.json();
+        currentSessionId = data.session_id;
 
-        setProgress(100, 'Complete!');
-
-        // Slight delay to let progress bar hit 100
-        await sleep(400);
-        hideProgress();
-
-        // Render results
-        renderResults(data);
-        setStatus('ready', 'Online');
+        // Start Polling
+        pollAnalysisStatus(currentSessionId);
 
     } catch (err) {
-        clearInterval(ticker);
         hideProgress();
         setStatus('ready', 'Ready');
         console.error('[Copilot Error]', err);
-        appendMessage('bot', `❌ Analysis failed: ${err.message}\n\nPlease check your file format or try again in a moment. The server may be busy processing other requests.`);
-
-        // Reset drop zone
+        appendMessage('bot', `❌ Upload failed: ${err.message}`);
         resetDropZone();
+    }
+}
+
+async function pollAnalysisStatus(sessionId) {
+    appendMessage('bot', `⚙️ Your dataset has been accepted. Beginning deep mathematical analysis...`);
+    
+    let isComplete = false;
+    let failCount = 0;
+
+    while (!isComplete) {
+        try {
+            const response = await fetch(`/analysis-status/${sessionId}`);
+            if (!response.ok) {
+                failCount++;
+                if (failCount > 5) throw new Error("Connection lost repeatedly.");
+                await sleep(3000);
+                continue;
+            }
+
+            const data = await response.json();
+            
+            if (data.status === 'completed') {
+                isComplete = true;
+                setProgress(100, 'Complete!');
+                await sleep(500);
+                hideProgress();
+                renderResults(data.result);
+                setStatus('ready', 'Online');
+            } else if (data.status === 'error') {
+                throw new Error(data.error || "Analysis failed.");
+            } else {
+                // Update progress based on backend report
+                let statusMsg = "Processing...";
+                if (data.progress < 30) statusMsg = "Routing to Specialist...";
+                else if (data.progress < 50) statusMsg = "Mapping Data Roles...";
+                else if (data.progress < 70) statusMsg = "Training Neural Network...";
+                else if (data.progress < 90) statusMsg = "Generating Strategy...";
+                
+                setProgress(data.progress, statusMsg);
+                await sleep(2500); // Poll every 2.5 seconds
+            }
+        } catch (err) {
+            isComplete = true;
+            hideProgress();
+            setStatus('ready', 'Ready');
+            appendMessage('bot', `❌ Analysis failed: ${err.message}`);
+            resetDropZone();
+        }
     }
 }
 
