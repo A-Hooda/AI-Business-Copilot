@@ -132,12 +132,18 @@ def run_automated_analysis(session_id: str, file_path: str):
         session_data["progress"] = 60
         df_scaled = DataAdapter.scale_for_ml(df, roles)
         prediction_payload = UniversalPredictor.get_performance_drivers(df_scaled, roles)
+        
+        # Immediately free the scaled copy — we no longer need it
+        del df_scaled
+        gc.collect()
+        
         if prediction_payload:
             drivers, y_test, y_pred, mae, r2 = prediction_payload
         else:
             drivers, y_test, y_pred, mae, r2 = {}, None, None, 0.0, 0.0
             
         forecast_df = UniversalPredictor.generate_forecast(df, roles)
+
         
         # 5. Visualizer
         session_data["progress"] = 80

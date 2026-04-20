@@ -154,7 +154,8 @@ class UniversalPredictor:
 
         # 5. Training Loop with DataLoader (Scalable)
         dataset = TensorDataset(X_train_tensor, y_train_tensor)
-        batch_size = min(256, len(dataset)) if len(dataset) > 1 else 1 # Dynamic batching
+        batch_size = min(64, len(dataset)) if len(dataset) > 1 else 1 # Capped at 64 for 512MB RAM stability
+
         
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=False)
         

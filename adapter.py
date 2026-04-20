@@ -14,7 +14,7 @@ class DataAdapter:
         Scaling for the ML predictor happens separately inside get_performance_drivers.
         """
         print(f"--- [Adapter] Cleaning {len(df)} rows... ---")
-        df = df.copy()
+        # df = df.copy() # DELETED to save memory on 512MB RAM instances
 
         # 0. Robustness for Enterprise Scale
         # Drop strict duplicates early to save memory/tokens
@@ -23,11 +23,11 @@ class DataAdapter:
         if len(df) < initial_rows:
             print(f"--- [Adapter] Dropped {initial_rows - len(df)} duplicate records. ---")
 
-        # Row Sampling Ceiling (1 Million Rows)
-        # Prevents kernel crashes on memory-constrained environments while preserving distribution
-        if len(df) > 1000000:
-            print(f"--- [Adapter] Dataset too large ({len(df)} rows). Downsampling to 1M rows for stability. ---")
-            df = df.sample(n=1000000, random_state=42)
+        # Row Sampling Ceiling (Aggressive 50k for Cloud Stability)
+        # 1M rows was causing OOM restarts on Render. 50k is more than enough for deep analysis.
+        if len(df) > 50000:
+            print(f"--- [Adapter] Dataset large ({len(df)} rows). Downsampling to 50k for stability. ---")
+            df = df.sample(n=50000, random_state=42)
 
         detected_currency = None
         import re
