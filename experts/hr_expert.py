@@ -18,7 +18,7 @@ class HRExpert:
                 salary_col = col
 
         # 2. Tenure Calculation (Years since Hire Date)
-        if hire_date_col:
+        if hire_date_col and hire_date_col in df.columns:
             print(f"--- [HR Expert] Calculating Employee Tenure from {hire_date_col} ---")
             df[hire_date_col] = pd.to_datetime(df[hire_date_col], errors='coerce')
             current_date = datetime.now()
@@ -27,7 +27,7 @@ class HRExpert:
             )
 
         # 3. Salary Parity Score
-        if salary_col:
+        if salary_col and salary_col in df.columns:
             mean_sal = df[salary_col].mean()
             if mean_sal and mean_sal != 0:
                 df['Salary_vs_Avg'] = df[salary_col] / mean_sal

@@ -11,11 +11,21 @@ class ExpertAdvisor:
         Generates a comprehensive Markdown report with diagnostic reasoning and strategy.
         """
         # 1. Identify "Low Performers" for the AI to reason about
-        target = next((c for c, r in roles.items() if r == 'primary_metric'), 'Metric')
-        dim = next((c for c, r in roles.items() if r == 'primary_dimension'), 'Category')
-        
-        # Sort by worst performers
-        worst_segments = df.groupby(dim)[target].mean().sort_values(ascending=True).head(3).to_dict()
+        # Smart detection of metric if LLM mapping failed
+        target = next((c for c, r in roles.items() if r == 'primary_metric'), None)
+        if not target or target not in df.columns:
+            num_cols = df.select_dtypes(include=['number']).columns
+            target = num_cols[0] if len(num_cols) > 0 else None
+            
+        dim = next((c for c, r in roles.items() if r == 'primary_dimension'), None)
+        if not dim or dim not in df.columns:
+            cat_cols = df.select_dtypes(exclude=['number']).columns
+            dim = cat_cols[0] if len(cat_cols) > 0 else None
+            
+        # Safety Gate: if still no target/dim, we provide a neutral report
+        worst_segments = {}
+        if target and dim:
+            worst_segments = df.groupby(dim)[target].mean().sort_values(ascending=True).head(3).to_dict()
         top_drivers = list(drivers.keys())[:3] if drivers else []
         
         # EXTRACT EXACT MATH COMPUTATIONS

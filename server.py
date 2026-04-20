@@ -131,8 +131,8 @@ async def upload_file(file: UploadFile = File(...)):
         strategy = advisor.generate_strategy(df, roles, drivers, domain, insight, session_data.get("currency_symbol", "$"))
 
         # 7. Data Summary Section
-        target_col = next((c for c, r in roles.items() if r == 'primary_metric'), None)
-        dim_col = next((c for c, r in roles.items() if r == 'primary_dimension'), None)
+        target_col = next((c for c, r in roles.items() if r == 'primary_metric' and c in df.columns), None)
+        dim_col = next((c for c, r in roles.items() if r == 'primary_dimension' and c in df.columns), None)
         
         # Calculate Memory meticulously
         mem_bytes = df.memory_usage(deep=True).sum()
@@ -155,10 +155,13 @@ async def upload_file(file: UploadFile = File(...)):
             "r2": f"{r2:.3f}" if r2 else "N/A"
         }
         
-        if target_col and pd.api.types.is_numeric_dtype(df[target_col]):
+        if target_col and target_col in df.columns and pd.api.types.is_numeric_dtype(df[target_col]):
             summary["top_metric"] = f"{df[target_col].mean():.2f}"
-            if dim_col:
-                summary["top_segment"] = str(df.groupby(dim_col)[target_col].sum().idxmax())
+            if dim_col and dim_col in df.columns:
+                try:
+                    summary["top_segment"] = str(df.groupby(dim_col)[target_col].sum().idxmax())
+                except Exception:
+                    summary["top_segment"] = "—"
 
         result = {
             "session_id": session_id,

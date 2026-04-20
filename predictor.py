@@ -101,7 +101,7 @@ class UniversalPredictor:
                 if col in df.columns:
                     feature_cols.append(col)
                 
-        if not target_col or not feature_cols:
+        if not target_col or target_col not in df.columns or not feature_cols:
             return None
             
         print(f"--- [Sourcedotcom] Training Custom PyTorch Neural Network for {target_col}... ---")

@@ -15,7 +15,7 @@ class FinanceExpert:
                 metric = col
                 break
 
-        if metric:
+        if metric and metric in df.columns:
             print(f"--- [Finance Expert] Calculating Margins and Taxes for {metric} ---")
             # 1. Estimate Profit (15%) and Taxation (18%)
             df['Estimated_Tax'] = df[metric] * 0.18

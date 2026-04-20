@@ -12,8 +12,8 @@ class DataComputer:
         computed_dict = {}
         
         # Identify key columns organically based on mapping
-        primary_metric = next((c for c, r in mapping.items() if r == 'primary_metric'), None)
-        categorical_dims = [c for c, r in mapping.items() if 'dimension' in r]
+        primary_metric = next((c for c, r in mapping.items() if r == 'primary_metric' and c in df.columns), None)
+        categorical_dims = [c for c, r in mapping.items() if 'dimension' in r and c in df.columns]
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
         cat_cols = df.select_dtypes(exclude=['number']).columns.tolist()
         

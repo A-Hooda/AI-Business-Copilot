@@ -16,7 +16,11 @@ class DataChatter:
         stats = df.describe(include='all').to_string()
         
         # Identify the main KPI for the AI to focus on
-        target = next((c for c, r in mapping.items() if r == 'primary_metric'), 'Metric')
+        target = next((c for c, r in mapping.items() if r == 'primary_metric' and c in df.columns), None)
+        if not target:
+            # Fallback to the first available numeric column
+            num_cols = df.select_dtypes(include=['number']).columns.tolist()
+            target = num_cols[0] if num_cols else None
         
         # EXTRACT EXACT MATH COMPUTATIONS!
         # Because LLMs are bad at math, we explicitly run Pandas math and inject it 

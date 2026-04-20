@@ -34,7 +34,8 @@ class DataInterpreter:
         - identifier: Unique IDs.
 
         TASK: 
-        1. Map every column name to one of the roles above in 'column_roles'.
+        1. Map every column name to one of the roles above in 'column_roles'. 
+           - CRITICAL: Use the EXACT column names from the provided list. Do not change case or spelling.
         2. Identify the 'currency_symbol' (e.g., $, ₹, €) used for metric columns.
         3. Identify the 'currency_code' (e.g., USD, INR, EUR) if possible.
         4. Provide a "business_brief" (one sentence) stating what this dataset represents.
